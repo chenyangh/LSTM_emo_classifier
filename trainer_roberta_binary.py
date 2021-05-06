@@ -24,21 +24,21 @@ from utils.file_logger import get_file_logger
 
 
 parser = argparse.ArgumentParser(description='Options')
-parser.add_argument('--batch_size', default=16, type=int, help="batch size")
+parser.add_argument('--batch_size', default=48, type=int, help="batch size")
 parser.add_argument('--postname', default='', type=str, help="post name")
 parser.add_argument('--gamma', default=0.2, type=float, help="post name")
 parser.add_argument('--loss', default='ce', type=str, help="loss function ce/focal")
 parser.add_argument('--dataset', default='sem18', type=str, choices=['sem18', 'goemotions', 'bmet'])
-parser.add_argument('--criterion', default='jaccard', type=str,
+parser.add_argument('--criterion', default='micro', type=str,
                     help='criterion to prevent overfitting, currently support f1 and loss')
 parser.add_argument('--bert', default='base', type=str, help="bert size [base/large]")
 parser.add_argument('--scheduler', action='store_true')
-parser.add_argument('--warmup_epoch', default=2, type=int, help='')
+parser.add_argument('--warmup_epoch', default=4, type=int, help='')
 parser.add_argument('--stop_epoch', default=10, type=int, help='')
 parser.add_argument('--max_epoch', default=20, type=int, help='')
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--en_lr', type=float, default=5e-5)
-parser.add_argument('--de_lr', default=5e-5, type=float, help="decoder learning rate")
+parser.add_argument('--de_lr', default=1e-5, type=float, help="decoder learning rate")
 parser.add_argument('--attention', default='dot', type=str, help='general/mlp/dot')
 parser.add_argument('--de_dim', default=400, type=int, help="dimension")
 parser.add_argument('--decoder_dropout', default=0, type=float, help='dropout rate')
@@ -49,7 +49,7 @@ parser.add_argument('--huang_init', action='store_true')
 parser.add_argument('--normal_init', action='store_true')
 parser.add_argument('--unify_decoder', action='store_true')
 parser.add_argument('--eval_every', type=int, default=500)
-parser.add_argument('--patience', default=3, type=int, help='dropout rate')
+parser.add_argument('--patience', default=10, type=int, help='dropout rate')
 parser.add_argument('--min_lr_ratio', default=0.1, type=float, help='')
 parser.add_argument('--en_de_activate_function', default='tanh', type=str)
 parser.add_argument('--log_path', type=str, default=None)
@@ -74,11 +74,11 @@ logger = get_file_logger(args.log_path)  # Note: this is ugly, but I am lazy
 
 
 # 768 for roberta_l12 1024 for roberta_large
-folder_path = 'roberta_large'
+folder_path = 'roberta_l12'
 vocab_path = f'{folder_path}/vocab.txt'
 config_path = f'{folder_path}/config.json'
 model_path = f'{folder_path}/pytorch_model.bin'
-SRC_HIDDEN_DIM = 1024  # 768 for roberta_l12 1024 for roberta_large
+SRC_HIDDEN_DIM = 768  # 768 for roberta_l12 1024 for roberta_large
 
 tokenizer = BertTokenizer.from_pretrained(vocab_path)
 config = BertConfig.from_pretrained(config_path)
@@ -240,9 +240,9 @@ def eval(model, best_model, loss_criterion, es, dev_loader, dev_data):
 
     logger('Normal: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4], 'micro P', metric[5],
           'micro R', metric[6])
-    metric_2 = get_multi_metrics(gold, preds)
-    logger('Multi only: h_loss:', metric_2[0], 'macro F', metric_2[1], 'micro F', metric_2[4])
-    logger('Jaccard:', jaccard)
+    # metric_2 = get_multi_metrics(gold, preds)
+    # logger('Multi only: h_loss:', metric_2[0], 'macro F', metric_2[1], 'micro F', metric_2[4])
+    # logger('Jaccard:', jaccard)
 
     if args.criterion == 'loss':
         criterion = test_loss_sum
@@ -398,7 +398,7 @@ def train(X_train, y_train, X_dev, y_dev, X_test, y_test):
             del decoder_logit
         # break
 
-    torch.save(model, 'nlpcc_roberta_large.pt')
+    torch.save(model, 'nlpcc_roberta_l12.pt')
     # pred_list_2 = np.concatenate(pred_list, axis=0)[:, 1]
     preds = np.concatenate(pred_list, axis=0)
     gold = np.concatenate(gold_list, axis=0)
@@ -408,10 +408,10 @@ def train(X_train, y_train, X_dev, y_dev, X_test, y_test):
     logger("NOTE, this is on the test set")
     metric = get_metrics(binary_gold, binary_preds)
     logger('Normal: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
-    metric = get_multi_metrics(binary_gold, binary_preds)
-    logger('Multi only: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
-    # show_classification_report(binary_gold, binary_preds)
-    logger('Jaccard:', jaccard_score(gold, preds))
+    # metric = get_multi_metrics(binary_gold, binary_preds)
+    # logger('Multi only: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
+    # # show_classification_report(binary_gold, binary_preds)
+    # logger('Jaccard:', jaccard_score(gold, preds))
 
     return binary_gold, binary_preds
 
@@ -461,12 +461,13 @@ def main():
     show_classification_report(gold_list, final_pred)
     metric = get_metrics(gold_list, final_pred)
     logger('Normal: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
-    metric = get_multi_metrics(gold_list, final_pred)
-    logger('Multi only: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
-    metric = get_single_metrics(gold_list, final_pred)
-    logger('Single only: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
-    logger('Jaccard:', jaccard_score(gold_list, final_pred))
-    logger('Bert Binary', args)
+    # metric = get_multi_metrics(gold_list, final_pred)
+    # logger('Multi only: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
+    # metric = get_single_metrics(gold_list, final_pred)
+    # logger('Single only: h_loss:', metric[0], 'macro F', metric[1], 'micro F', metric[4])
+    # logger('Jaccard:', jaccard_score(gold_list, final_pred))
+    # logger('Bert Binary', args)
+    logger(f'{(gold_list == final_pred)/len(gold_list)}')
 
     if args.output_path is not None:
         with open(args.output_path, 'bw') as _f:

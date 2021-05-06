@@ -24,21 +24,21 @@ from utils.file_logger import get_file_logger
 
 
 parser = argparse.ArgumentParser(description='Options')
-parser.add_argument('--batch_size', default=16, type=int, help="batch size")
+parser.add_argument('--batch_size', default=48, type=int, help="batch size")
 parser.add_argument('--postname', default='', type=str, help="post name")
 parser.add_argument('--gamma', default=0.2, type=float, help="post name")
 parser.add_argument('--loss', default='ce', type=str, help="loss function ce/focal")
 parser.add_argument('--dataset', default='sem18', type=str, choices=['sem18', 'goemotions', 'bmet'])
-parser.add_argument('--criterion', default='jaccard', type=str,
+parser.add_argument('--criterion', default='micro', type=str,
                     help='criterion to prevent overfitting, currently support f1 and loss')
 parser.add_argument('--bert', default='base', type=str, help="bert size [base/large]")
 parser.add_argument('--scheduler', action='store_true')
-parser.add_argument('--warmup_epoch', default=2, type=int, help='')
+parser.add_argument('--warmup_epoch', default=10, type=int, help='')
 parser.add_argument('--stop_epoch', default=10, type=int, help='')
 parser.add_argument('--max_epoch', default=20, type=int, help='')
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--en_lr', type=float, default=5e-5)
-parser.add_argument('--de_lr', default=5e-5, type=float, help="decoder learning rate")
+parser.add_argument('--de_lr', default=2e-5, type=float, help="decoder learning rate")
 parser.add_argument('--attention', default='dot', type=str, help='general/mlp/dot')
 parser.add_argument('--de_dim', default=400, type=int, help="dimension")
 parser.add_argument('--decoder_dropout', default=0, type=float, help='dropout rate')
@@ -49,7 +49,7 @@ parser.add_argument('--huang_init', action='store_true')
 parser.add_argument('--normal_init', action='store_true')
 parser.add_argument('--unify_decoder', action='store_true')
 parser.add_argument('--eval_every', type=int, default=500)
-parser.add_argument('--patience', default=3, type=int, help='dropout rate')
+parser.add_argument('--patience', default=10, type=int, help='dropout rate')
 parser.add_argument('--min_lr_ratio', default=0.1, type=float, help='')
 parser.add_argument('--en_de_activate_function', default='tanh', type=str)
 parser.add_argument('--log_path', type=str, default=None)
@@ -456,6 +456,8 @@ def main():
     logger('Jaccard:', jaccard_score(gold_list, final_pred))
     logger('Bert Binary', args)
 
+    logger(f'{(np.argmax(gold_list) == np.argmax(final_pred)) / len(np.argmax(gold_list))}')
+    logger(f'{len(np.argmax(gold_list))}')
     if args.output_path is not None:
         with open(args.output_path, 'bw') as _f:
             pkl.dump(final_pred, _f)
